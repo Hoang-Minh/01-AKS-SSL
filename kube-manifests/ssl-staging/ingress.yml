@@ -8,7 +8,7 @@ metadata:
     cert-manager.io/acme-challenge-type: http01
 spec:  
   rules:  
-  - host: "test.selftaughtprogrammers.com"
+  - host: "test-api.selftaughtprogrammers.com"
     http:
       paths:
       - path: /   

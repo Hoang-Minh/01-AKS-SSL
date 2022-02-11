@@ -9,4 +9,4 @@ spec:
     name: letsencrypt-staging
     kind: ClusterIssuer  
   dnsNames:
-  - test.selftaughtprogrammers.com
+  - test-api.selftaughtprogrammers.com

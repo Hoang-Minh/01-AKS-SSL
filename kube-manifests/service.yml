@@ -5,6 +5,7 @@ metadata:
   labels: 
     app: myapp1
 spec:  
+  type: ClusterIP
   selector:
     app: myapp1
   ports: 
