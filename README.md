@@ -1,141 +1,127 @@
-# Create AKS Cluster
+1. Create AKS
+2. choco install kubernetes-helm
+3. helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+6. helm repo update
 
-## Step-01: Introduction
-- Understand about AKS Cluster
-- Discuss about Kubernetes Architecture from AKS Cluster perspective
+9. deployment.yml
 
-## Step-02: Create AKS Cluster
-- Create Kubernetes Cluster
-- **Basics**
-  - **Subscription:** Free Trial
-  - **Resource Group:** Creat New: aks-rg1
-  - **Kubernetes Cluster Name:** aksdemo1
-  - **Region:** (US) Central US
-  - **Kubernetes Version:** Select what ever is latest stable version
-  - **Node Size:** Standard DS2 v2 (Default one)
-  - **Node Count:** 1
-- **Node Pools**
-  - leave to defaults
-- **Authentication**
-  - Authentication method: 	System-assigned managed identity
-  - Rest all leave to defaults
-- **Networking**
-  - **Network Configuration:** Advanced
-  - **Network Policy:** Azure
-  - Rest all leave to defaults
-- **Integrations**
-  - Azure Container Registry: None
-  - leave to defaults
-- **Tags**
-  - leave to defaults
-- **Review + Create**
-  - Click on **Create**
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp1-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp1
+  template:
+    metadata:
+      name: myapp1-pod
+      labels: # Dictionary 
+        app: myapp1       
+    spec:
+      containers: # List
+        - name: myapp1-container
+          image: stacksimplify/kubenginx:1.0.0
+          ports:
+            - containerPort: 80
+		
+10. service.yml
 
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp1-loadbalancer
+  labels: 
+    app: myapp1
+spec:  
+  selector:
+    app: myapp1
+  ports: 
+    - port: 80
+      targetPort: 80
+	  
+11. ingress.yml
 
-## Step-03: Cloud Shell - Configure kubectl to connect to AKS Cluster
-- Go to https://shell.azure.com
-```
-# Template
-az aks get-credentials --resource-group <Resource-Group-Name> --name <Cluster-Name>
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-ingress-demo
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+    cert-manager.io/acme-challenge-type: http01
+spec:  
+  rules:  
+  - host: "test.selftaughtprogrammers.com"
+    http:
+      paths:
+      - path: /   
+        pathType: Prefix     
+        backend:
+          service:
+            name: myapp1-loadbalancer
+            port:
+              number: 80
 
-# Replace Resource Group & Cluster Name
-az aks get-credentials --resource-group aks-rg1 --name aksdemo1
+14.
+Look for pubic ip, get the front end ip, and replace it under step 15
 
-# List Kubernetes Worker Nodes
-kubectl get nodes 
-kubectl get nodes -o wide
-```
+15. note: with/out namespace 
 
-## Step-04: Explore Cluster Control Plane and Workload inside that
-```
-# List Namespaces
-kubectl get namespaces
-kubectl get ns
+# Use Helm to deploy an NGINX ingress controller
+helm install ingress-nginx ingress-nginx/ingress-nginx
+    --set controller.replicaCount=2 \
+    --set controller.nodeSelector."beta\.kubernetes\.io/os"=linux \
+    --set defaultBackend.nodeSelector."beta\.kubernetes\.io/os"=linux \
+    --set controller.service.externalTrafficPolicy=Local \
+    --set controller.service.loadBalancerIP="REPLACE IP IN STEP 14" 
+	
 
-# List Pods from all namespaces
-kubectl get pods --all-namespaces
+	
+16. Check ip for load balancer
+17. Go to amazon route 53, add ip record to the hosted zones
+			  
+			  
+5. helm repo add jetstack https://charts.jetstack.io
+7. kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.crds.yaml
+6. helm repo update
+8. helm install \
+  cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --version v1.7.1 \
+  # --set installCRDs=true
 
-# List all k8s objects from Cluster Control plane
-kubectl get all --all-namespaces
-```
+12. clusterissuer.yml
 
-## Step-05: Explore the AKS cluster on Azure Management Console
-- Explore the following features on high-level
-- **Overview**
-  - Activity Log
-  - Access Control (IAM)
-  - Security
-  - Diagnose and solver problems
-- **Settings**
-  - Node Pools
-  - Upgrade
-  - Scale
-  - Networking
-  - DevSpaces
-  - Deployment Center
-  - Policies
-- **Monitoring**
-  - Insights
-  - Alerts
-  - Metrics
-  - and many more 
-- **VM Scale Sets**
-  - Verify Azure VM Instances
-  - Verify if **Enhanced Networking is enabled or not**  
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging  
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: taolaobidaomail@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-staging
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+		  
+13. certificate.yml
 
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ssl-cert-staging
+  namespace: default
+spec:
+  secretName: ssl-cert-staging
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer  
+  dnsNames:
+  - test.selftaughtprogrammers.com
 
-
-## Step-06: Local Desktop - Install Azure CLI and Azure AKS CLI
-```
-# Install Azure CLI (MAC)
-brew update && brew install azure-cli
-
-# Login to Azure
-az login
-
-# Install Azure AKS CLI
-az aks install-cli
-
-# Configure Cluster Creds (kube config)
-az aks get-credentials --resource-group aks-rg1 --name aksdemo1
-
-# List AKS Nodes
-kubectl get nodes 
-kubectl get nodes -o wide
-```
-- **Reference Documentation Links**
-- https://docs.microsoft.com/en-us/cli/azure/?view=azure-cli-latest
-- https://docs.microsoft.com/en-us/cli/azure/aks?view=azure-cli-latest
-
-## Step-07: Deploy Sample Application and Test
-- Don't worry about what is present in these two files for now. 
-- By the time we complete **Kubernetes Fundamentals** sections, you will be an expert in writing Kubernetes manifest in YAML.
-- For now just focus on result. 
-```
-# Deploy Application
-kubectl apply -f kube-manifests/
-
-# Verify Pods
-kubectl get pods
-
-# Verify Deployment
-kubectl get deployment
-
-# Verify Service (Make a note of external ip)
-kubectl get service
-
-# Access Application
-http://<External-IP-from-get-service-output>
-```
-
-## Step-07: Clean-Up
-```
-# Delete Applications
-kubectl delete -f kube-manifests/
-```
-
-## References
-- https://docs.microsoft.com/en-us/cli/azure/install-azure-cli-macos?view=azure-cli-latest
-
-## Why Managed Identity when creating Cluster?
-- https://docs.microsoft.com/en-us/azure/aks/use-managed-identity
